@@ -1,0 +1,270 @@
+let MENU = 0;
+let img1;
+let playerX = 300;
+let playerY = 500;
+let globalSpeed = 4;
+let playing = false;
+let bullets = [];
+let lives;
+let startTime;
+let time;
+let stoppedTime = 0;
+let music;
+let bg;
+
+function preload() {
+  // init music
+  soundFormats("mp3");
+  music = loadSound("isolation");
+  bg = loadImage("bg.jpg");
+  gameBg = loadImage("gamebg.jpg");
+}
+
+function setup() {
+  createCanvas(600, 600);
+}
+
+function loadMenu() {
+  if (MENU == 0) {
+    // show main menu
+    music.stop();
+    image(bg, 0, 0);
+    fill(200, 12, 7);
+    rect(50, 50, 200, 75);
+    fill(100, 90, 125);
+    rect(50, 200, 200, 75);
+    fill(155, 40, 200);
+    rect(50, 350, 200, 75);
+    textSize(20);
+    fill(200);
+    text("Music: Isolation by NightHawk22", 10, 590);
+    text("Backgrounds: wallpapertag.com", 10, 570);
+    textSize(50);
+    fill(255);
+    text("PLAY", 70, 106);
+    text("QUIT", 70, 405);
+    text("RULES", 70, 258);
+    textSize(30);
+    text("WELCOME TO PELLET FRENZY", 80, 40);
+    // shows highscore/win message
+    if (stoppedTime > 0 && stoppedTime < 100) {
+      text(`Highscore: ${stoppedTime}%!`, 300, 500);
+    } else if (stoppedTime >= 100) {
+      text("You won! Thanks for playing!", 200, 500);
+    }
+  } else if (MENU == 1) {
+    // User clicked play, game code starts here
+    setupGame();
+    playing = true;
+  } else if (MENU == 2) {
+    // show rules screen
+    image(bg, 0, 0);
+    fill(255);
+    textSize(25);
+    text("CLICK TO RETURN TO GAME MENU.", 85, 30);
+    textSize(20);
+    text("1 - Holding shift gives you a major boost in speed.", 65, 200);
+    for (let i = 20; i < 40; i++) {
+      fill(0, 255, 100, i * 6);
+      ellipse(i * 10, 240, 30);
+    }
+    fill(255);
+    text("2 - Left, Right, Up, and down arrow keys moves the player.", 65, 300);
+    fill(0, 100, 255);
+    ellipse(190, 350, 30);
+    fill(255);
+    text("3 - Avoid the red objects, or else you will lose health!", 65, 450);
+    fill(255, 0, 0);
+    ellipse(190, 500, 30);
+    fill(0, 255, 100);
+  } else if (MENU == 3) {
+    // show quit screen
+    if (MENU == 3) {
+      background(5, 12, 7);
+      textSize(50);
+      text("Come back to play soon!", 25, 100);
+    }
+  }
+}
+
+class Bullet {
+  constructor(x, y, speed, direction) {
+    this.x = x;
+    this.y = y;
+    this.speed = speed;
+    this.direction = direction;
+  }
+  // move projectiles relative to speed and direction set earlier
+  move() {
+    this.x += this.speed;
+    this.y += this.direction;
+  } // creates projectiles
+  spawn() {
+    fill(255, 0, 0);
+    ellipse(this.x, this.y, 10);
+  } // checks if player is inside projectile
+  contains(px, py) {
+    let d = dist(px, py, this.x, this.y);
+    if (d < 16) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+// not looped
+function setupGame() {
+  // init game
+  music.play();
+  hp = 250;
+  playing = true;
+  startTime = performance.now();
+  boost = 0;
+}
+
+// looped
+function playGame() {
+  image(gameBg, -200, 0);
+  // time is the percentage of the level since you started playing
+  time = ((performance.now() - startTime) / 1910).toFixed(2);
+  fill(200);
+  // gui stuff
+  textSize(30);
+  text(`HP: ${hp}`, 450, 30);
+  text(`${time}%`, 5, 30);
+  text(`Boost: ${boost}`, 400, 590);
+  rect(550, 600, 20, -boost * 2);
+  fill(0, 150, 255);
+  movePlayer();
+  ellipse(playerX, playerY, 30);
+  spawn();
+  // game end conditions
+  if (hp < 0) {
+    gameOver();
+  } else if (time >= 100) {
+    gameOver();
+  }
+}
+
+//looped
+function spawn() {
+  // slope to gradually curve up and boost odds of projectiles spawning relative to time elapsed
+  let spawnSlope =
+    Math.E ** (((performance.now() - startTime) / 2000) * log(3) * (1 / 70));
+  spawnFreq = random(0, spawnSlope);
+  if (spawnFreq > 0.9) {
+    //randomly picks either left or right to spawn bullet
+    spawnDirection = random(0, 1);
+    // other bullet properties
+    let pelletX;
+    let pelletY = random(1, 600);
+    let pelletSpeed = random(3, 5);
+    let pelletAngle = random(-3, 3);
+    //spawn left
+    if (spawnDirection > 0.5) {
+      pelletX = -30;
+    }
+    //spawn right
+    if (spawnDirection <= 0.5) {
+      pelletX = 630;
+      pelletSpeed = -pelletSpeed;
+    }
+    // creates bullet
+    let newPellet = new Bullet(pelletX, pelletY, pelletSpeed, pelletAngle);
+    bullets.push(newPellet);
+  }
+  // makes bullets spawn and move
+  for (let i = 0; i < bullets.length; i++) {
+    bullets[i].spawn();
+    bullets[i].move();
+    // reduces hp if the bullet hits the player
+    if (bullets[i].contains(playerX, playerY) && vulnerable === true) {
+      hp -= 1;
+    }
+    // deletes the bullets after 200 more bullets spawn to reduce lag
+    if (bullets.length > 200) {
+      bullets.shift();
+    }
+  }
+}
+
+//not looped
+function gameOver() {
+  // returns to main menu
+  MENU = 0;
+  playing = false;
+  // dio helps us determine when the user fails
+  if (time > stoppedTime) {
+    stoppedTime = time;
+  }
+  // deletes existing bullets for game restart
+  for (i = 0; i < 200; i++) {
+    bullets.pop();
+  }
+}
+
+//looped
+function draw() {
+  if (playing === true) {
+    playGame();
+  } else {
+    loadMenu();
+  }
+}
+
+//looped
+function movePlayer() {
+  // moves player if game is active and key is held down
+  // statements after the and operators make sure the player is within the borders
+  if (playing === true) {
+    if (keyIsDown(LEFT_ARROW) && playerX - 15 > 0) {
+      playerX -= globalSpeed;
+    }
+    if (keyIsDown(RIGHT_ARROW) && playerX + 15 < width) {
+      playerX += globalSpeed;
+    }
+    if (keyIsDown(UP_ARROW) && playerY - 15 > 0) {
+      playerY -= globalSpeed;
+    }
+    if (keyIsDown(DOWN_ARROW) && playerY + 15 < height) {
+      playerY += globalSpeed;
+    }
+    // temporary boost if you hold down shift and you have boost
+    if (keyIsDown(SHIFT) && boost > 0) {
+      globalSpeed = 10;
+      boost -= 4;
+      fill(255, 200, 0, 50);
+      vulnerable = false;
+    } else {
+      globalSpeed = 4;
+      vulnerable = true;
+      // stops boost from recharging when you have shift held down and you reached the limit
+      if (boost < 100 && !keyIsDown(SHIFT)) {
+        boost += 1;
+      }
+    }
+  }
+}
+
+//looped kinda
+function mouseClicked() {
+  if (playing === false) {
+    if (MENU == 0) {
+      // buttons
+      if (mouseX < 200 && mouseX > 50) {
+        if (mouseY < 125 && mouseY > 50) {
+          MENU = 1;
+        }
+        if (mouseY < 275 && mouseY > 200) {
+          MENU = 2;
+        }
+        if (mouseY < 425 && mouseY > 350) {
+          MENU = 3;
+        }
+      }
+    } else if (MENU == 2 && mouseButton == LEFT) {
+      MENU = 0;
+    }
+  }
+}
